@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:conext="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                         http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+    <!--扫描有注解的包-->
+    <conext:component-scan base-package="com.controller,com.exception"/>
+
+    <!--配置视图解析器-->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/"/>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+
+    <!--加载国际化资源文件,id必须为messageSource-->
+    <bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
+        <property name="basename" value="i18n"/>
+    </bean>
+
+    <!--配置不经过controller直接跳转到另一页面，请求path，直接跳转到success.jsp-->
+    <!--此注解会让所有的请求转到path的地址，而忽略@RequestMappinig()，想让两者共存，需要加入<mvc:annotation-driven>注解-->
+    <mvc:view-controller path="ViewController" view-name="success"/>
+
+    <!--此配置是SpringMVC的基础配置，很多功能都需要此配置来协调-->
+    <mvc:annotation-driven/>
+
+    <!--该注解会让mvc接收一个请求,在没有对应的@RequestMapping时,将该请求交给服务器默认的Servlet处理(将直接访问),需要先加annotation注解-->
+    <mvc:default-servlet-handler/>
+
+    <!--1,将自定义转换器纳入SpringIOC容器-->
+    <bean class="com.converter.MyConverter" id="myConverter"/>
+    <!--2,将转换器纳入到SpringMVC的转换器Bean里 -->
+    <bean class="org.springframework.context.support.ConversionServiceFactoryBean" id="conversionService">
+        <property name="converters">
+            <set>
+                <ref bean="myConverter"/>
+            </set>
+        </property>
+    </bean>
+    <!--3,将conversionService注册到 <mvc:annotation-driven/>中-->
+    <mvc:annotation-driven conversion-service="conversionService" />
+
+    <!--配置数据格式化注解所依赖的bean
+        FormattingConversionServiceFactoryBean有两个功能,既可以实现格式化,又可以实现类型转换,可以将转换器配置在这个bean中
+    -->
+    <bean id="conversionService2" class="org.springframework.format.support.FormattingConversionServiceFactoryBean"/>
+
+    <!--配置CommonsMultipartResolver，将其加入SpringIOC容器，用于实现文件上传
+    id值必须为multipartResolver -->
+    <bean class="org.springframework.web.multipart.commons.CommonsMultipartResolver" id="multipartResolver">
+        <property name="defaultEncoding" value="UTF-8"/>
+        <!--上传单个文件最大值，单位Byte，-1为无限-->
+        <property name="maxUploadSize" value="102400"/>
+    </bean>
+
+    <!--配置拦截器，默认拦截全部请求，拦截全部，bean放在最外层，拦截特定，bean放在interceptor里层的最后-->
+    <mvc:interceptors>
+        <!--<bean class="com.interceptor.MyInterceptor"/>-->
+        <!--配置具体的拦截路径-->
+        <mvc:interceptor>
+            <!--指定拦截的路径-->
+            <mvc:mapping path="/**"/>
+            <!--指定不拦截的路径-->
+            <mvc:exclude-mapping path="/Welcome"/>
+            <bean class="com.interceptor.MyInterceptor"/>
+        </mvc:interceptor>
+        <!--第二个拦截器-->
+        <mvc:interceptor>
+        <!--指定拦截的路径-->
+        <mvc:mapping path="/**"/>
+        <!--指定不拦截的路径-->
+        <mvc:exclude-mapping path="/Welcome"/>
+        <bean class="com.interceptor.MySecondInterceptor"/>
+        </mvc:interceptor>
+    </mvc:interceptors>
+
+    <!--以配置的方式处理异常-->
+    <bean class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+        <!--如果发生异常，异常对象会被保存在exceptionAttribute中，并且会放入request域中，异常变量的默认值是exception-->
+        <property name="exceptionAttribute" value="e"/>
+        <property name="exceptionMappings">
+            <props>
+                <!--相当于catch(ArithmeticException e) {跳转到：error}-->
+                <prop key="java.lang.ArithmeticException">
+                    error
+                </prop>
+            </props>
+        </property>
+    </bean>
+
+</beans>
